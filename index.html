@@ -448,8 +448,8 @@ label.field-label:first-child{margin-top:0;}
     <!-- ===================== IMPORT SCREEN ===================== -->
     <section class="screen" id="screen-import">
       <p style="font-size:12.5px; color:var(--text-dim); line-height:1.6; margin:0 0 4px;">
-        Pegá un array JSON de ítems para crear categorías, segmentos o ensamblajes directamente en la app.
-        <b style="color:var(--text-mid);">Esto procesa todo localmente</b> — todavía no hay conexión real con la API.
+        Pegá un array JSON de ítems para crear categorías, segmentos o ensamblajes directamente en tu Google Sheet.
+        <b style="color:var(--text-mid);">Esto envía los datos a tu API en vivo</b> — se guardan de verdad, no hay vuelta atrás.
       </p>
       <div class="section-label">Plantillas rápidas</div>
       <div class="template-row" id="templateRow"></div>
@@ -609,6 +609,32 @@ function apiSegmentToUi(s){
 }
 function apiAssemblyToUi(a){
   return {id:a.id, name:a.name||'', base_text:a.base_text||'', items:Array.isArray(a.items) ? a.items : []};
+}
+
+/* ---------- initial + refresh load from the live API ---------- */
+async function loadAllFromApi(silent){
+  if(!silent) setSyncStatus('loading');
+  try{
+    const [cats, segs, asms] = await Promise.all([
+      apiGet('categories'), apiGet('segments'), apiGet('assemblies')
+    ]);
+    state.categories = (cats||[]).map(apiCategoryToUi);
+    state.segments = (segs||[]).map(apiSegmentToUi);
+    state.assemblies = (asms||[]).map(apiAssemblyToUi);
+    setSyncStatus('ok');
+    if(!silent){
+      if(ui.activeTab==='segments') renderSegments();
+      if(ui.activeTab==='categories') renderCategories();
+      if(ui.activeTab==='composer') renderComposer();
+      if(ui.activeTab==='assemblies') renderAssemblies();
+    }
+    return true;
+  } catch(err){
+    console.error('PromptForge API error:', err);
+    setSyncStatus('error');
+    showToast('No se pudo conectar con la API: '+err.message, 'error');
+    return false;
+  }
 }
 
 /* ============================================================
@@ -1064,20 +1090,42 @@ function renderCategorySheet(){
   `;
 }
 
-function saveCategoryFromEditor(){
+async function saveCategoryFromEditor(){
   const cat = ui.editingCategory;
   if(!cat.name.trim()){ document.getElementById('fCatName').focus(); return; }
+  const btn = document.getElementById('btnSaveCat');
+
   if(cat.id){
+    // No update endpoint on the API — existing categories can only be edited locally.
     const idx = state.categories.findIndex(c=>c.id===cat.id);
     state.categories[idx] = cat;
-  } else {
-    cat.id = uid('cat');
-    state.categories.push(cat);
+    closeSheet();
+    renderCategories();
+    if(ui.activeTab==='segments') renderSegments();
+    if(ui.activeTab==='composer') renderComposer();
+    showToast('Guardado solo en esta sesión — la API todavía no soporta editar categorías existentes.', 'warn');
+    return;
   }
-  closeSheet();
-  renderCategories();
-  if(ui.activeTab==='segments') renderSegments();
-  if(ui.activeTab==='composer') renderComposer();
+
+  btn.disabled = true; const origLabel = btn.textContent; btn.textContent = 'Guardando…';
+  try{
+    const result = await apiIngest([{
+      entity:'category',
+      data:{ name:cat.name, parent_id:cat.parent_id||'', default_order:cat.default_order, instructions:uiInstructionsToApi(cat.instructions) }
+    }], {stop_on_error:true});
+    const errItem = (result.results||[]).find(r=>r.status==='error');
+    if(errItem) throw new Error(errItem.error||'Error desconocido');
+    await loadAllFromApi(true);
+    closeSheet();
+    renderCategories();
+    if(ui.activeTab==='segments') renderSegments();
+    if(ui.activeTab==='composer') renderComposer();
+    showToast('Categoría creada ✓');
+  } catch(err){
+    showToast('No se pudo crear la categoría: '+err.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = origLabel;
+  }
 }
 
 /* ============================================================
@@ -1218,11 +1266,25 @@ document.getElementById('btnSaveAssembly').addEventListener('click', ()=>{
     <p class="field-hint">Se van a guardar ${ui.composer.items.length} segmento(s) y el texto base actual.</p>`;
   sheetFooter.innerHTML = `<button class="btn btn-ghost" id="btnCancelAsm">Cancelar</button><button class="btn btn-primary" id="btnConfirmAsm">Guardar</button>`;
   document.getElementById('btnCancelAsm').onclick = closeSheet;
-  document.getElementById('btnConfirmAsm').onclick = ()=>{
+  document.getElementById('btnConfirmAsm').onclick = async ()=>{
     const name = document.getElementById('asmNameInput').value.trim() || 'Ensamblaje sin título';
-    state.assemblies.push({id:uid('asm'), name, base_text:ui.composer.base_text, items:JSON.parse(JSON.stringify(ui.composer.items))});
-    closeSheet();
-    switchTab('assemblies');
+    const confirmBtn = document.getElementById('btnConfirmAsm');
+    confirmBtn.disabled = true; const origLabel = confirmBtn.textContent; confirmBtn.textContent = 'Guardando…';
+    try{
+      const result = await apiIngest([{
+        entity:'assembly',
+        data:{ name, base_text: ui.composer.base_text, items: JSON.parse(JSON.stringify(ui.composer.items)) }
+      }], {stop_on_error:true});
+      const errItem = (result.results||[]).find(r=>r.status==='error');
+      if(errItem) throw new Error(errItem.error||'Error desconocido');
+      await loadAllFromApi(true);
+      closeSheet();
+      switchTab('assemblies');
+      showToast('Ensamblaje creado ✓');
+    } catch(err){
+      showToast('No se pudo crear el ensamblaje: '+err.message, 'error');
+      confirmBtn.disabled = false; confirmBtn.textContent = origLabel;
+    }
   };
 });
 
@@ -1317,39 +1379,43 @@ function renderAssemblies(){
     e.stopPropagation();
     state.assemblies = state.assemblies.filter(x=>x.id!==btn.dataset.asm);
     renderAssemblies();
+    showToast('Eliminado solo en esta sesión — la API no soporta DELETE todavía.', 'warn');
   }));
 }
 
 /* ============================================================
-   IMPORT / INGEST SCREEN (local simulation of POST /api/v1/ingest)
+   IMPORT / INGEST SCREEN (POST /ingest — sends straight to the live API)
 ============================================================ */
 const TEMPLATES = {
   'Categoría + Segmentos': {
     items:[
       {entity:'category', temp_id:'cat_speaking2', data:{name:'Ways of Speaking', default_order:35, instructions:['Mixá estos patrones de habla libremente.']}},
       {entity:'segment', data:{title:'Habla formal y distante', short_desc:'Formal, sin contracciones, tono frío', category_id:'$cat_speaking2', tags:['formal','frío'],
-        versions:[{label:'default', content:'Siempre habla de forma extremadamente formal y evita contracciones.', positive_examples:['Entendido.','Procedamos.'], negative_examples:['Ok, vamos.']}]}},
+        versions:[{id:'v_imp_1', label:'default', content:'Siempre habla de forma extremadamente formal y evita contracciones.', positive_examples:['Entendido.','Procedamos.'], negative_examples:['Ok, vamos.']}]}},
       {entity:'segment', data:{title:'Habla sarcástica y corta', short_desc:'Respuestas cortas con sarcasmo sutil', category_id:'$cat_speaking2', tags:['sarcasmo'],
-        versions:[{label:'default', content:'Responde de forma breve y con un toque de sarcasmo sutil.', positive_examples:['Claro, como si eso fuera a funcionar.']}]}},
+        versions:[{id:'v_imp_2', label:'default', content:'Responde de forma breve y con un toque de sarcasmo sutil.', positive_examples:['Claro, como si eso fuera a funcionar.']}]}},
       {entity:'segment', data:{title:'Habla poética y elaborada', category_id:'$cat_speaking2',
-        versions:[{label:'default', content:'Usá un lenguaje rico, metafórico y pausado.'}]}}
+        versions:[{id:'v_imp_3', label:'default', content:'Usá un lenguaje rico, metafórico y pausado.'}]}}
     ],
     options:{transactional:true, create_missing_relations:true, stop_on_error:false}
   },
   'Ensamblaje Completo': {
     items:[
+      {entity:'category', temp_id:'cat_imp_sci', data:{name:'Científico', default_order:60, instructions:[]}},
+      {entity:'segment', temp_id:'seg_imp_sci', data:{title:'Frialdad científica', short_desc:'Brillante, arrogante, sin emociones', category_id:'$cat_imp_sci', tags:['npc','ciencia'],
+        versions:[{id:'v_imp_sci1', label:'default', content:'Actúa como un científico brillante y ligeramente arrogante que nunca muestra emoción.', positive_examples:['Fascinante. Como predije.','Emocionalmente irrelevante.'], negative_examples:[]}]}},
       {entity:'assembly', data:{name:'Científico Frío (importado)', base_text:'Eres un científico brillante y ligeramente arrogante. Nunca muestras emoción.',
-        items:[{segment_id:'seg_1', version_id:'v_1a', positive_count:2, include_negative:false}]}}
+        items:[{segment_id:'$seg_imp_sci', version_id:'v_imp_sci1', positive_count:2, include_negative:false}]}}
     ],
     options:{transactional:true, create_missing_relations:true, stop_on_error:false}
   },
   'Mezcla (Cat + Seg + Asm)': {
     items:[
       {entity:'category', temp_id:'cat_quirks', data:{name:'Quirks', default_order:45, instructions:['Aplicá estos rasgos con sutileza — nunca más de uno o dos por respuesta.']}},
-      {entity:'segment', data:{title:'Tic verbal repetitivo', short_desc:'Repite una muletilla característica', category_id:'$cat_quirks', tags:['quirk'],
-        versions:[{label:'default', content:'Termina algunas frases con una muletilla característica y reconocible.', positive_examples:['…¿entendés?']}]}},
+      {entity:'segment', temp_id:'seg_quirk_tic', data:{title:'Tic verbal repetitivo', short_desc:'Repite una muletilla característica', category_id:'$cat_quirks', tags:['quirk'],
+        versions:[{id:'v_imp_quirk1', label:'default', content:'Termina algunas frases con una muletilla característica y reconocible.', positive_examples:['…¿entendés?']}]}},
       {entity:'assembly', data:{name:'NPC con Tic (importado)', base_text:'Eres un comerciante ambulante en un mercado medieval.',
-        items:[{segment_id:'seg_4', version_id:'v_4a', positive_count:1, include_negative:false}]}}
+        items:[{segment_id:'$seg_quirk_tic', version_id:'v_imp_quirk1', positive_count:1, include_negative:false}]}}
     ],
     options:{transactional:false, create_missing_relations:true, stop_on_error:false}
   }
@@ -1371,86 +1437,6 @@ document.getElementById('templateRow').querySelectorAll('.chip').forEach(chip=>{
 ['optTransactional','optCreateMissing','optStopOnError'].forEach(id=>{
   document.getElementById(id).addEventListener('click', function(){ this.classList.toggle('on'); });
 });
-
-function resolveRefs(obj, tempIdMap){
-  if(typeof obj==='string'){
-    if(obj.startsWith('$') && tempIdMap[obj.substring(1)]) return tempIdMap[obj.substring(1)];
-    return obj;
-  }
-  if(Array.isArray(obj)) return obj.map(x=>resolveRefs(x,tempIdMap));
-  if(obj && typeof obj==='object'){
-    const out = {};
-    for(const k in obj) out[k] = resolveRefs(obj[k], tempIdMap);
-    return out;
-  }
-  return obj;
-}
-
-function runLocalIngest(payload){
-  const items = payload.items || [];
-  const options = payload.options || {};
-  const tempIdMap = {};
-  const results = [];
-  const staged = {category:[], segment:[], assembly:[]};
-
-  items.forEach((item,index)=>{ item._genId = uid('e'); item._index = index; if(item.temp_id) tempIdMap[item.temp_id] = item._genId; });
-
-  let aborted = false;
-  for(const item of items){
-    if(aborted){
-      results.push({index:item._index, entity:item.entity, status:'skipped', id:null, temp_id:item.temp_id||null, error:'Detenido por stop_on_error tras un error previo'});
-      continue;
-    }
-    try{
-      const data = resolveRefs(item.data||{}, tempIdMap);
-      if(item.entity==='category'){
-        staged.category.push({
-          id:item._genId, name:data.name||'Sin título', parent_id: data.parent_id || data.parent || null,
-          default_order:Number(data.default_order)||0,
-          instructions:(data.instructions||[]).map(t=> typeof t==='string' ? {id:uid('i'), text:t} : {id:t.id||uid('i'), text:t.text||''})
-        });
-      } else if(item.entity==='segment'){
-        const rawVersions = (data.versions && data.versions.length) ? data.versions : (data.version ? [data.version] : []);
-        staged.segment.push({
-          id:item._genId,
-          category_id: data.category_id || data.category || '',
-          title: data.title || 'Sin título',
-          short_desc: data.short_desc || data.short_description || '',
-          tags: data.tags || [],
-          notes: data.notes || '',
-          versions: rawVersions.length ? rawVersions.map(v=>({id:uid('v'), label:v.label||'default', content:v.content||'', positive_examples:v.positive_examples||[], negative_examples:v.negative_examples||[]}))
-                                        : [{id:uid('v'), label:'default', content:'', positive_examples:[], negative_examples:[]}]
-        });
-      } else if(item.entity==='assembly'){
-        staged.assembly.push({id:item._genId, name:data.name||'Ensamblaje sin título', base_text:data.base_text||'', items:data.items||[]});
-      } else {
-        throw new Error('Tipo de entidad no soportado: '+item.entity);
-      }
-      results.push({index:item._index, entity:item.entity, status:'created', id:item._genId, temp_id:item.temp_id||null, error:null});
-    } catch(e){
-      results.push({index:item._index, entity:item.entity, status:'error', id:null, temp_id:item.temp_id||null, error:e.message});
-      if(options.stop_on_error) aborted = true;
-    }
-  }
-
-  const anyError = results.some(r=>r.status==='error');
-  const commit = !(options.stop_on_error && anyError);
-  if(commit){
-    state.categories.push(...staged.category);
-    state.segments.push(...staged.segment);
-    state.assemblies.push(...staged.assembly);
-  }
-
-  return {
-    success: commit,
-    results,
-    summary:{
-      total: items.length,
-      created: commit ? (staged.category.length+staged.segment.length+staged.assembly.length) : 0,
-      errors: results.filter(r=>r.status==='error').length
-    }
-  };
-}
 
 function readImportOptions(){
   return {
@@ -1476,9 +1462,10 @@ document.getElementById('btnValidateJson').addEventListener('click', ()=>{
   }
 });
 
-document.getElementById('btnImportJson').addEventListener('click', ()=>{
+document.getElementById('btnImportJson').addEventListener('click', async ()=>{
   const raw = document.getElementById('importJson').value;
   const msg = document.getElementById('validateMsg');
+  const importBtn = document.getElementById('btnImportJson');
   let parsed;
   try{
     parsed = JSON.parse(raw);
@@ -1489,11 +1476,22 @@ document.getElementById('btnImportJson').addEventListener('click', ()=>{
     document.getElementById('importResults').innerHTML = '';
     return;
   }
-  parsed.options = Object.assign({}, parsed.options, readImportOptions());
-  const result = runLocalIngest(parsed);
+  const options = Object.assign({}, parsed.options, readImportOptions());
   msg.classList.remove('show');
-  renderImportResults(result);
-  renderSegments(); renderCategories(); renderAssemblies(); renderComposer();
+  importBtn.disabled = true; const origLabel = importBtn.textContent; importBtn.textContent = 'Importando…';
+  try{
+    const result = await apiIngest(parsed.items, options);
+    renderImportResults(result);
+    await loadAllFromApi(true);
+    renderSegments(); renderCategories(); renderAssemblies(); renderComposer();
+    showToast(result.summary.errors>0 ? `Importado con ${result.summary.errors} error(es)` : 'Importación completa ✓', result.summary.errors>0 ? 'warn' : undefined);
+  } catch(err){
+    msg.className = 'validate-msg show bad';
+    msg.textContent = `✕ Error al conectar con la API — ${err.message}`;
+    document.getElementById('importResults').innerHTML = '';
+  } finally {
+    importBtn.disabled = false; importBtn.textContent = origLabel;
+  }
 });
 
 function renderImportResults(result){
@@ -1518,9 +1516,10 @@ function renderImportResults(result){
 }
 
 /* ============================================================
-   INIT
+   INIT — load live data from the Apps Script API, then render
 ============================================================ */
 switchTab('segments');
+loadAllFromApi();
 
 })();
 </script>
