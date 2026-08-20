@@ -376,6 +376,83 @@ label.field-label:first-child{margin-top:0;}
 .sync-dot.ok{background:var(--mint); box-shadow:0 0 8px var(--mint);}
 .sync-dot.error{background:var(--danger); box-shadow:0 0 8px var(--danger); cursor:pointer;}
 .topbar{position:relative;}
+
+/* ---------- icon buttons (dice / random) ---------- */
+.icon-btn{
+  flex:0 0 auto; width:38px; height:38px; border-radius:11px;
+  display:flex; align-items:center; justify-content:center; font-size:16px;
+  background:var(--card); border:1px solid var(--border-soft); color:var(--text-mid);
+  cursor:pointer; transition:.15s;
+}
+.icon-btn:active{transform:scale(0.92);}
+.icon-btn:hover{border-color:var(--pink-soft); color:var(--pink);}
+.icon-btn.sm{width:28px; height:28px; font-size:13px; border-radius:8px;}
+
+/* ---------- category accordion groups (Segments screen) ---------- */
+.cat-group{border:1px solid var(--border-soft); border-radius:var(--radius-lg); margin-bottom:10px; overflow:hidden; background:rgba(255,255,255,0.015);}
+.cat-group-head{
+  display:flex; align-items:center; gap:10px; padding:13px 14px; cursor:pointer; user-select:none;
+}
+.cat-group-dot{width:9px; height:9px; border-radius:50%; flex:0 0 auto;}
+.cat-group-name{font-family:var(--font-display); font-size:14.5px; font-weight:600; flex:1; min-width:0;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.cat-group-count{font-family:var(--font-mono); font-size:10.5px; color:var(--text-faint); flex:0 0 auto;}
+.cat-group-chev{flex:0 0 auto; color:var(--text-dim); transition:transform .2s; font-size:11px;}
+.cat-group-chev.open{transform:rotate(180deg);}
+.cat-group-body{max-height:0; overflow:hidden; transition:max-height .25s ease;}
+.cat-group-body.open{max-height:4000px;}
+.cat-group-body-inner{padding:0 10px 10px;}
+
+/* ---------- compact segment row (used inside accordions) ---------- */
+.seg-mini-row{
+  display:flex; align-items:center; gap:10px; padding:9px 8px; border-radius:10px; cursor:pointer;
+  transition:background .15s;
+}
+.seg-mini-row:hover{background:rgba(255,255,255,0.03);}
+.seg-mini-info{flex:1; min-width:0;}
+.seg-mini-title{font-size:13px; font-weight:600; color:var(--text-hi); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.seg-mini-sub{font-size:11px; color:var(--text-faint); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.seg-quick-add{
+  flex:0 0 auto; width:26px; height:26px; border-radius:8px; display:flex; align-items:center; justify-content:center;
+  background:var(--card); border:1px solid var(--border); color:var(--text-mid); font-size:15px; cursor:pointer; transition:.15s;
+}
+.seg-quick-add:active{transform:scale(0.9);}
+.seg-quick-add.added{background:linear-gradient(90deg,var(--purple-700),var(--pink)); border-color:transparent; color:#fff;}
+
+/* ---------- card quick-add (full segment cards) ---------- */
+.card-quick-add{
+  position:absolute; top:12px; right:12px; width:28px; height:28px; border-radius:9px;
+  display:flex; align-items:center; justify-content:center; font-size:15px;
+  background:var(--card-hi); border:1px solid var(--border); color:var(--text-mid); cursor:pointer; transition:.15s; z-index:2;
+}
+.card-quick-add:active{transform:scale(0.9);}
+.card-quick-add.added{background:linear-gradient(90deg,var(--purple-700),var(--pink)); border-color:transparent; color:#fff;}
+
+/* ---------- category card expand (Categories screen) ---------- */
+.cat-card-expand{border-top:1px solid var(--border-soft); margin-top:11px; padding-top:11px;}
+.cat-card-toggle{display:flex; align-items:center; gap:6px; font-family:var(--font-mono); font-size:10.5px; color:var(--text-dim); cursor:pointer; padding-left:10px;}
+.cat-card-toggle .chev{transition:transform .2s; font-size:10px;}
+.cat-card-toggle .chev.open{transform:rotate(180deg);}
+
+/* ---------- recommendations / similar segments ---------- */
+.reco-section{margin-bottom:6px;}
+.reco-label{font-family:var(--font-mono); font-size:10px; letter-spacing:1px; text-transform:uppercase; color:var(--mint); margin:0 0 8px 2px; display:flex; align-items:center; gap:6px;}
+.similar-row{
+  display:flex; align-items:center; gap:9px; padding:9px 10px; border-radius:11px; margin-bottom:7px; cursor:pointer;
+  background:rgba(43,232,196,0.045); border:1px solid rgba(43,232,196,0.18); transition:.15s;
+}
+.similar-row:hover{border-color:var(--mint);}
+.similar-row .sim-title{flex:1; min-width:0; font-size:12.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.similar-row .sim-score{font-family:var(--font-mono); font-size:9.5px; color:var(--mint); flex:0 0 auto;}
+
+/* ---------- nav badge ---------- */
+.nav-badge{
+  position:absolute; top:2px; right:calc(50% - 20px); min-width:15px; height:15px; padding:0 3px;
+  border-radius:100px; background:linear-gradient(90deg,var(--purple-700),var(--pink)); color:#fff;
+  font-family:var(--font-mono); font-size:9px; font-weight:600; display:flex; align-items:center; justify-content:center;
+  box-shadow:0 0 8px var(--pink-dim);
+}
+.nav-badge.hidden{display:none;}
 </style>
 </head>
 <body data-tab="segments">
@@ -403,10 +480,14 @@ label.field-label:first-child{margin-top:0;}
 
     <!-- ===================== SEGMENTS SCREEN ===================== -->
     <section class="screen active" id="screen-segments">
-      <div class="searchbar">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
-        <input type="text" id="segSearch" placeholder="Buscar por título o tag…">
+      <div style="display:flex; gap:8px; align-items:center;">
+        <div class="searchbar" style="flex:1; margin-bottom:0;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+          <input type="text" id="segSearch" placeholder="Buscar por título, tag o categoría…">
+        </div>
+        <div class="icon-btn" id="btnGlobalRandom" title="Agregar un segmento al azar al Composer">🎲</div>
       </div>
+      <div style="height:12px;"></div>
       <div class="chip-row" id="segCatChips"></div>
       <div id="segList"></div>
     </section>
@@ -432,7 +513,10 @@ label.field-label:first-child{margin-top:0;}
 
       <div class="section-label">Composición <span id="compCountLbl" style="font-family:var(--font-mono); text-transform:none; letter-spacing:0;"></span></div>
       <div id="compList"></div>
-      <button class="btn btn-ghost btn-block" id="btnAddSegmentComposer">+ Agregar Segmento</button>
+      <div class="btn-row" style="margin-top:0;">
+        <button class="btn btn-ghost btn-block" id="btnAddSegmentComposer">+ Agregar Segmento</button>
+        <button class="btn btn-ghost" id="btnRandomAssembly" style="flex:0 0 52px;" title="Agregar un segmento al azar de cada categoría que todavía no esté en la composición">🎲</button>
+      </div>
 
       <div class="btn-row">
         <button class="btn btn-ghost" id="btnClearComposer">Limpiar</button>
@@ -494,7 +578,8 @@ label.field-label:first-child{margin-top:0;}
       <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 12l9 4 9-4M3 17l9 4 9-4"/></svg>
       Categories
     </button>
-    <button class="nav-btn" data-tab="composer">
+    <button class="nav-btn" data-tab="composer" style="position:relative;">
+      <span class="nav-badge hidden" id="composerNavBadge">0</span>
       <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="M4 21v-6M4 11V3M12 21v-9M12 8V3M20 21v-4M20 13V3"/><circle cx="4" cy="13" r="2"/><circle cx="12" cy="10" r="2"/><circle cx="20" cy="15" r="2"/></svg>
       Composer
     </button>
@@ -668,7 +753,8 @@ const ui = {
   editingSegment:null, editingCategory:null,
   expandedVersionId:null,
   composer:{base_text:'', items:[]},
-  pickerSearch:'', pickerCatFilter:'all', pickerMode:'composer'
+  pickerSearch:'', pickerCatFilter:'all', pickerMode:'composer',
+  expandedSegCats:{}, expandedCatScreenCats:{}
 };
 
 /* ============================================================
@@ -748,6 +834,125 @@ function categoryById(id){ return state.categories.find(c=>c.id===id); }
 function segmentsInCategory(catId){ return state.segments.filter(s=>s.category_id===catId); }
 
 /* ============================================================
+   COMPOSER "BOARD" HELPERS — quick-add, badge, randomizers
+============================================================ */
+function updateComposerBadge(){
+  const badge = document.getElementById('composerNavBadge');
+  if(!badge) return;
+  const n = ui.composer.items.length;
+  badge.textContent = n > 99 ? '99+' : String(n);
+  badge.classList.toggle('hidden', n===0);
+}
+
+function isInComposer(segId){ return ui.composer.items.some(it=>it.segment_id===segId); }
+
+function addSegmentObjToComposer(seg){
+  const v = seg.versions[0];
+  if(!v) return false;
+  ui.composer.items.push({segment_id:seg.id, version_id:v.id, positive_count:Math.min(2,(v.positive_examples||[]).length), include_negative:false});
+  return true;
+}
+
+function quickAddSegmentToComposer(segId){
+  const seg = state.segments.find(s=>s.id===segId);
+  if(!seg) return false;
+  let nowAdded;
+  if(isInComposer(segId)){
+    ui.composer.items = ui.composer.items.filter(it=>it.segment_id!==segId);
+    nowAdded = false;
+    showToast(`"${seg.title}" quitado del Composer`);
+  } else {
+    addSegmentObjToComposer(seg);
+    nowAdded = true;
+    showToast(`"${seg.title}" agregado al Composer ✓`);
+  }
+  updateComposerBadge();
+  if(ui.activeTab==='composer') renderComposer();
+  return nowAdded;
+}
+
+function randomSegmentFromCategory(catId, excludeIds){
+  const pool = state.segments.filter(s=> s.category_id===catId && !excludeIds.includes(s.id));
+  if(!pool.length) return null;
+  return pool[Math.floor(Math.random()*pool.length)];
+}
+function randomAnySegment(excludeIds){
+  const pool = state.segments.filter(s=> !excludeIds.includes(s.id));
+  if(!pool.length) return null;
+  return pool[Math.floor(Math.random()*pool.length)];
+}
+
+function handleGlobalRandomAdd(){
+  const excludeIds = ui.composer.items.map(it=>it.segment_id);
+  const seg = randomAnySegment(excludeIds);
+  if(!seg){ showToast('No hay más segmentos para agregar al azar.', 'warn'); return; }
+  addSegmentObjToComposer(seg);
+  updateComposerBadge();
+  if(ui.activeTab==='composer') renderComposer();
+  showToast(`🎲 "${seg.title}" agregado al Composer al azar ✓`);
+}
+
+function handleCategoryRandomAdd(catId){
+  const cat = categoryById(catId);
+  const excludeIds = ui.composer.items.map(it=>it.segment_id);
+  const seg = randomSegmentFromCategory(catId, excludeIds);
+  if(!seg){ showToast(`No hay más segmentos al azar en "${cat?cat.name:'esta categoría'}".`, 'warn'); return; }
+  addSegmentObjToComposer(seg);
+  updateComposerBadge();
+  if(ui.activeTab==='composer') renderComposer();
+  showToast(`🎲 "${seg.title}" agregado al Composer ✓`);
+}
+
+function handleRandomAssembly(){
+  const existingCatIds = new Set(ui.composer.items.map(it=>{
+    const seg = state.segments.find(s=>s.id===it.segment_id);
+    return seg ? seg.category_id : null;
+  }));
+  let added = 0;
+  sortedCategories().forEach(cat=>{
+    if(existingCatIds.has(cat.id)) return;
+    const excludeIds = ui.composer.items.map(it=>it.segment_id);
+    const seg = randomSegmentFromCategory(cat.id, excludeIds);
+    if(seg){ addSegmentObjToComposer(seg); added++; }
+  });
+  updateComposerBadge();
+  renderComposer();
+  showToast(added ? `🎲 Se agregaron ${added} segmento(s) — uno por categoría nueva ✓` : 'Ya hay un segmento de cada categoría disponible en el Composer.', added?undefined:'warn');
+}
+
+/* ---------- similarity / recommendations ---------- */
+function similarityScore(segA, segB){
+  if(segA.id===segB.id) return -1;
+  let score = 0;
+  const tagsA = new Set((segA.tags||[]).map(t=>t.toLowerCase()));
+  const tagsB = new Set((segB.tags||[]).map(t=>t.toLowerCase()));
+  tagsA.forEach(t=>{ if(tagsB.has(t)) score += 2; });
+  if(segA.category_id && segA.category_id===segB.category_id) score += 1;
+  return score;
+}
+function getSimilarSegments(seg, limit){
+  return state.segments
+    .map(other=>({seg:other, score:similarityScore(seg, other)}))
+    .filter(x=> x.score>0)
+    .sort((a,b)=> b.score-a.score)
+    .slice(0, limit||4);
+}
+function getRecommendedForComposer(limit){
+  const inComposer = ui.composer.items.map(it=> state.segments.find(s=>s.id===it.segment_id)).filter(Boolean);
+  if(!inComposer.length) return [];
+  const excludeIds = new Set(inComposer.map(s=>s.id));
+  return state.segments
+    .filter(s=> !excludeIds.has(s.id))
+    .map(cand=>{
+      const score = inComposer.reduce((sum,s)=> sum + Math.max(0, similarityScore(s, cand)), 0);
+      return {seg:cand, score};
+    })
+    .filter(x=> x.score>0)
+    .sort((a,b)=> b.score-a.score)
+    .slice(0, limit||5);
+}
+
+/* ============================================================
    SEGMENTS SCREEN
 ============================================================ */
 function renderSegCatChips(){
@@ -760,42 +965,143 @@ function renderSegCatChips(){
   });
 }
 
+function segMatchesQuery(s, qWords){
+  if(!qWords.length) return true;
+  const cat = categoryById(s.category_id);
+  const hay = (s.title+' '+(s.tags||[]).join(' ')+' '+(s.short_desc||'')+' '+(cat?cat.name:'')).toLowerCase();
+  return qWords.every(w=> hay.includes(w));
+}
+
+function segMiniRowHtml(s){
+  const added = isInComposer(s.id);
+  return `<div class="seg-mini-row" data-seg="${s.id}">
+    <div class="seg-mini-info" data-action="open-seg" data-seg="${s.id}">
+      <div class="seg-mini-title">${esc(s.title)}</div>
+      <div class="seg-mini-sub">${esc(s.short_desc||(s.versions.length+' versión(es)'))}</div>
+    </div>
+    <div class="seg-quick-add ${added?'added':''}" data-action="quick-add" data-seg="${s.id}" title="${added?'Quitar del':'Agregar al'} Composer">${added?'✓':'+'}</div>
+  </div>`;
+}
+
+function catGroupHtml(cat, segs, expanded){
+  const catId = cat ? cat.id : '__none__';
+  const color = cat ? catColor(cat.id) : 'var(--text-faint)';
+  const name = cat ? cat.name : 'Sin categoría';
+  return `<div class="cat-group">
+    <div class="cat-group-head" data-action="toggle-group" data-group="${catId}">
+      <span class="cat-group-dot" style="background:${color}"></span>
+      <span class="cat-group-name">${esc(name)}</span>
+      <span class="cat-group-count">${segs.length}</span>
+      ${cat ? `<span class="icon-btn sm" data-action="cat-random" data-cat="${cat.id}" title="Agregar segmento al azar de ${esc(name)}">🎲</span>` : ''}
+      <span class="cat-group-chev ${expanded?'open':''}">▾</span>
+    </div>
+    <div class="cat-group-body ${expanded?'open':''}" data-groupbody="${catId}">
+      <div class="cat-group-body-inner">
+        ${segs.length ? segs.map(segMiniRowHtml).join('') : `<p class="field-hint" style="padding:6px 8px;">Sin segmentos en esta categoría todavía.</p>`}
+      </div>
+    </div>
+  </div>`;
+}
+
+function wireSegGroupEvents(root){
+  root.querySelectorAll('[data-action="toggle-group"]').forEach(head=> head.addEventListener('click', (e)=>{
+    if(e.target.closest('[data-action="cat-random"]')) return;
+    const g = head.dataset.group;
+    ui.expandedSegCats[g] = !ui.expandedSegCats[g];
+    renderSegments();
+  }));
+  root.querySelectorAll('[data-action="cat-random"]').forEach(btn=> btn.addEventListener('click', e=>{
+    e.stopPropagation();
+    handleCategoryRandomAdd(btn.dataset.cat);
+    renderSegments();
+  }));
+  root.querySelectorAll('[data-action="open-seg"]').forEach(el=> el.addEventListener('click', ()=>{
+    openSegmentEditor(state.segments.find(s=>s.id===el.dataset.seg));
+  }));
+  root.querySelectorAll('[data-action="quick-add"]').forEach(btn=> btn.addEventListener('click', e=>{
+    e.stopPropagation();
+    quickAddSegmentToComposer(btn.dataset.seg);
+    renderSegments();
+  }));
+}
+
 function renderSegments(){
   renderSegCatChips();
-  const q = ui.segSearch.trim().toLowerCase();
-  let list = state.segments.filter(s=>{
-    if(ui.segCatFilter!=='all' && s.category_id!==ui.segCatFilter) return false;
-    if(!q) return true;
-    const hay = (s.title+' '+(s.tags||[]).join(' ')+' '+(s.short_desc||'')).toLowerCase();
-    return hay.includes(q);
-  }).sort((a,b)=> a.title.localeCompare(b.title));
-
+  const qWords = ui.segSearch.trim().toLowerCase().split(/\s+/).filter(Boolean);
   const root = document.getElementById('segList');
-  if(list.length===0){
-    root.innerHTML = `<div class="empty-state"><span class="glyph">⟦ ∅ ⟧</span><p>No hay segmentos acá todavía.<br>Tocá el botón + para crear el primer módulo.</p></div>`;
+
+  if(ui.segCatFilter !== 'all'){
+    // scoped to one category — flat card list, same as before, plus quick-add
+    let list = state.segments.filter(s=> s.category_id===ui.segCatFilter && segMatchesQuery(s, qWords))
+                              .sort((a,b)=> a.title.localeCompare(b.title));
+    if(list.length===0){
+      root.innerHTML = `<div class="empty-state"><span class="glyph">⟦ ∅ ⟧</span><p>No hay segmentos acá todavía.<br>Tocá el botón + para crear el primer módulo.</p></div>`;
+      return;
+    }
+    root.innerHTML = list.map(segCardHtml).join('');
+    wireSegCardEvents(root);
     return;
   }
-  root.innerHTML = list.map(s=>{
-    const cat = categoryById(s.category_id);
-    const defV = s.versions[0];
-    const notchColor = catColor(s.category_id);
-    const tagsHtml = (s.tags||[]).slice(0,4).map(t=>`<span class="chip tag">${esc(t)}</span>`).join('');
-    return `<div class="card tappable" data-seg="${s.id}">
-      <div class="card-notch" style="background:${notchColor}"></div>
-      <h3 class="card-title">${esc(s.title)}</h3>
-      <p class="card-desc">${esc(s.short_desc||'Sin descripción corta.')}</p>
-      <div class="card-meta">
-        <span class="badge">${esc(cat?cat.name:'Sin categoría')}</span>
-        <span>${s.versions.length} versión${s.versions.length!==1?'es':''}</span>
-        <span>~${charCountOfVersion(defV)} chars</span>
-      </div>
-      ${tagsHtml?`<div class="card-tags">${tagsHtml}</div>`:''}
-    </div>`;
+
+  // "Todas" — grouped accordion by category
+  const isSearching = qWords.length>0;
+  const cats = sortedCategories();
+  const groups = cats.map(c=> ({cat:c, segs: state.segments.filter(s=> s.category_id===c.id && segMatchesQuery(s, qWords))}));
+  const uncategorized = state.segments.filter(s=> !categoryById(s.category_id) && segMatchesQuery(s, qWords));
+
+  const visibleGroups = isSearching ? groups.filter(g=> g.segs.length>0) : groups;
+
+  if(visibleGroups.length===0 && uncategorized.length===0){
+    root.innerHTML = isSearching
+      ? `<div class="empty-state"><span class="glyph">⟦ ∅ ⟧</span><p>Ningún segmento coincide con "${esc(ui.segSearch)}".</p></div>`
+      : `<div class="empty-state"><span class="glyph">⟦ ∅ ⟧</span><p>No hay segmentos acá todavía.<br>Tocá el botón + para crear el primer módulo.</p></div>`;
+    return;
+  }
+
+  let html = visibleGroups.map(g=>{
+    const expanded = isSearching ? true : !!ui.expandedSegCats[g.cat.id];
+    return catGroupHtml(g.cat, g.segs, expanded);
   }).join('');
-  root.querySelectorAll('.card').forEach(card=>{
-    card.addEventListener('click', ()=> openSegmentEditor(state.segments.find(s=>s.id===card.dataset.seg)));
-  });
+  if(uncategorized.length) html += catGroupHtml(null, uncategorized, true);
+
+  root.innerHTML = html;
+  wireSegGroupEvents(root);
 }
+
+/* full card markup, reused for the single-category scoped view */
+function segCardHtml(s){
+  const cat = categoryById(s.category_id);
+  const defV = s.versions[0];
+  const notchColor = catColor(s.category_id);
+  const tagsHtml = (s.tags||[]).slice(0,4).map(t=>`<span class="chip tag">${esc(t)}</span>`).join('');
+  const added = isInComposer(s.id);
+  return `<div class="card tappable" data-seg="${s.id}" style="padding-right:48px;">
+    <div class="card-notch" style="background:${notchColor}"></div>
+    <div class="card-quick-add ${added?'added':''}" data-action="quick-add" data-seg="${s.id}" title="${added?'Quitar del':'Agregar al'} Composer">${added?'✓':'+'}</div>
+    <h3 class="card-title">${esc(s.title)}</h3>
+    <p class="card-desc">${esc(s.short_desc||'Sin descripción corta.')}</p>
+    <div class="card-meta">
+      <span class="badge">${esc(cat?cat.name:'Sin categoría')}</span>
+      <span>${s.versions.length} versión${s.versions.length!==1?'es':''}</span>
+      <span>~${charCountOfVersion(defV)} chars</span>
+    </div>
+    ${tagsHtml?`<div class="card-tags">${tagsHtml}</div>`:''}
+  </div>`;
+}
+function wireSegCardEvents(root){
+  root.querySelectorAll('.card[data-seg]').forEach(card=>{
+    card.addEventListener('click', (e)=>{
+      if(e.target.closest('[data-action="quick-add"]')) return;
+      openSegmentEditor(state.segments.find(s=>s.id===card.dataset.seg));
+    });
+  });
+  root.querySelectorAll('[data-action="quick-add"]').forEach(btn=> btn.addEventListener('click', e=>{
+    e.stopPropagation();
+    quickAddSegmentToComposer(btn.dataset.seg);
+    renderSegments();
+  }));
+}
+document.getElementById('btnGlobalRandom').addEventListener('click', handleGlobalRandomAdd);
 document.getElementById('segSearch').addEventListener('input', e=>{ ui.segSearch = e.target.value; renderSegments(); });
 
 const PALETTE = ['var(--pink)','var(--purple-500)','var(--mint)','#ffb84d','#7ea6ff','#ff7ee0','#a3ff7e'];
@@ -830,6 +1136,7 @@ function openSegmentEditor(segment){
 
 function renderSegmentSheet(){
   const seg = ui.editingSegment;
+  const similar = seg.id ? getSimilarSegments(seg, 4) : [];
   let html = `
     <label class="field-label">Título</label>
     <input class="input" id="fTitle" data-field="title" value="${esc(seg.title)}" placeholder="Ej. Habla formal y distante">
@@ -853,8 +1160,21 @@ function renderSegmentSheet(){
     <div class="section-label">Versiones alternativas</div>
     <div id="versionsWrap">${seg.versions.map(v=> versionCardHtml(v)).join('')}</div>
     <button class="btn btn-ghost btn-block btn-sm" data-action="add-version">+ Agregar Versión</button>
+    ${similar.length ? `
+    <div class="section-label">Recomendados</div>
+    <div class="reco-section">
+      <div class="reco-label">✦ Segmentos similares (mismos tags o categoría)</div>
+      ${similar.map(x=> `<div class="similar-row" data-action="open-similar" data-seg="${x.seg.id}">
+        <span class="sim-title">${esc(x.seg.title)}</span>
+        <span class="sim-score">match ${x.score}</span>
+      </div>`).join('')}
+    </div>` : ''}
   `;
   sheetBody.innerHTML = html;
+  sheetBody.querySelectorAll('[data-action="open-similar"]').forEach(row=> row.addEventListener('click', ()=>{
+    const target = state.segments.find(s=>s.id===row.dataset.seg);
+    if(target) openSegmentEditor(target);
+  }));
 }
 
 function versionCardHtml(v){
@@ -1026,22 +1346,55 @@ function renderCategories(){
     return;
   }
   root.innerHTML = cats.map(c=>{
-    const segCount = segmentsInCategory(c.id).length;
+    const segs = segmentsInCategory(c.id);
     const parent = c.parent_id ? categoryById(c.parent_id) : null;
-    return `<div class="card tappable" data-cat="${c.id}" style="${parent?'margin-left:16px;':''}">
+    const expanded = !!ui.expandedCatScreenCats[c.id];
+    return `<div class="card" data-cat="${c.id}" style="${parent?'margin-left:16px;':''}">
       <div class="card-notch" style="background:${catColor(c.id)}"></div>
-      <h3 class="card-title">${esc(c.name)}</h3>
-      ${parent?`<p class="card-desc">dentro de ${esc(parent.name)}</p>`:''}
-      <div class="card-meta">
-        <span class="badge">orden ${c.default_order}</span>
-        <span class="badge pink">${segCount} segmento${segCount!==1?'s':''}</span>
-        <span class="badge mint">${(c.instructions||[]).length} instrucción(es)</span>
+      <div class="tappable" data-action="edit-cat" data-cat="${c.id}" style="cursor:pointer;">
+        <h3 class="card-title">${esc(c.name)}</h3>
+        ${parent?`<p class="card-desc">dentro de ${esc(parent.name)}</p>`:''}
+        <div class="card-meta">
+          <span class="badge">orden ${c.default_order}</span>
+          <span class="badge pink">${segs.length} segmento${segs.length!==1?'s':''}</span>
+          <span class="badge mint">${(c.instructions||[]).length} instrucción(es)</span>
+        </div>
+      </div>
+      <div class="cat-card-expand">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <div class="cat-card-toggle" data-action="toggle-cat-expand" data-cat="${c.id}" style="flex:1;">
+            <span class="chev ${expanded?'open':''}">▾</span>
+            <span>${expanded?'Ocultar':'Ver'} segmentos (${segs.length})</span>
+          </div>
+          ${segs.length ? `<span class="icon-btn sm" data-action="cat-random-inline" data-cat="${c.id}" title="Agregar segmento al azar de esta categoría al Composer">🎲</span>` : ''}
+        </div>
+        ${expanded ? `<div style="margin-top:8px;">${segs.length ? segs.map(segMiniRowHtml).join('') : `<p class="field-hint" style="padding:6px 8px;">Sin segmentos en esta categoría todavía.</p>`}</div>` : ''}
       </div>
     </div>`;
   }).join('');
-  root.querySelectorAll('.card').forEach(card=>{
-    card.addEventListener('click', ()=> openCategoryEditor(categoryById(card.dataset.cat)));
-  });
+
+  root.querySelectorAll('[data-action="edit-cat"]').forEach(el=> el.addEventListener('click', ()=>{
+    openCategoryEditor(categoryById(el.dataset.cat));
+  }));
+  root.querySelectorAll('[data-action="toggle-cat-expand"]').forEach(el=> el.addEventListener('click', ()=>{
+    const id = el.dataset.cat;
+    ui.expandedCatScreenCats[id] = !ui.expandedCatScreenCats[id];
+    renderCategories();
+  }));
+  root.querySelectorAll('[data-action="cat-random-inline"]').forEach(btn=> btn.addEventListener('click', e=>{
+    e.stopPropagation();
+    handleCategoryRandomAdd(btn.dataset.cat);
+    renderCategories();
+  }));
+  root.querySelectorAll('[data-action="open-seg"]').forEach(el=> el.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    openSegmentEditor(state.segments.find(s=>s.id===el.dataset.seg));
+  }));
+  root.querySelectorAll('[data-action="quick-add"]').forEach(btn=> btn.addEventListener('click', e=>{
+    e.stopPropagation();
+    quickAddSegmentToComposer(btn.dataset.seg);
+    renderCategories();
+  }));
 }
 
 function openCategoryEditor(category){
@@ -1233,7 +1586,7 @@ document.getElementById('compList').addEventListener('click', e=>{
   const seg = state.segments.find(s=>s.id===it.segment_id);
   const version = seg.versions.find(v=>v.id===it.version_id) || seg.versions[0];
 
-  if(action==='comp-remove'){ ui.composer.items.splice(idx,1); }
+  if(action==='comp-remove'){ ui.composer.items.splice(idx,1); updateComposerBadge(); }
   else if(action==='comp-pos-inc'){ it.positive_count = Math.min((version.positive_examples||[]).length, it.positive_count+1); }
   else if(action==='comp-pos-dec'){ it.positive_count = Math.max(0, it.positive_count-1); }
   else if(action==='comp-neg-toggle'){ it.include_negative = !it.include_negative; }
@@ -1253,9 +1606,11 @@ document.getElementById('compList').addEventListener('change', e=>{
 
 document.getElementById('btnClearComposer').addEventListener('click', ()=>{
   ui.composer = {base_text:'', items:[]};
+  updateComposerBadge();
   renderComposer();
 });
 document.getElementById('btnAddSegmentComposer').addEventListener('click', ()=> openPicker('composer'));
+document.getElementById('btnRandomAssembly').addEventListener('click', handleRandomAssembly);
 
 document.getElementById('btnSaveAssembly').addEventListener('click', ()=>{
   if(ui.composer.items.length===0 && !ui.composer.base_text.trim()){ return; }
@@ -1305,23 +1660,24 @@ function renderPickerSheet(){
     cats.map(c=>`<div class="chip ${ui.pickerCatFilter===c.id?'active':''}" data-pcat="${c.id}">${esc(c.name)}</div>`).join('');
 
   const q = ui.pickerSearch.trim().toLowerCase();
+  const qWords = q.split(/\s+/).filter(Boolean);
   let list = state.segments.filter(s=>{
     if(ui.pickerCatFilter!=='all' && s.category_id!==ui.pickerCatFilter) return false;
-    if(!q) return true;
-    return (s.title+' '+(s.tags||[]).join(' ')).toLowerCase().includes(q);
+    return segMatchesQuery(s, qWords);
   });
 
-  const rowsHtml = list.length ? list.map(s=>{
-    const added = ui.composer.items.some(it=>it.segment_id===s.id);
-    const cat = categoryById(s.category_id);
-    return `<div class="pick-row">
-      <div class="pick-info">
-        <div class="pick-title">${esc(s.title)}</div>
-        <div class="pick-sub">${esc(cat?cat.name:'')} · ${s.versions.length} versión(es)</div>
-      </div>
-      <div class="pick-add ${added?'added':''}" data-picksegid="${s.id}">${added?'✓':'+'}</div>
-    </div>`;
-  }).join('') : `<div class="empty-state"><span class="glyph">⟦ ∅ ⟧</span><p>Ningún segmento coincide con la búsqueda.</p></div>`;
+  const showReco = !q && ui.pickerCatFilter==='all';
+  const recoItems = showReco ? getRecommendedForComposer(5) : [];
+  const recoIds = new Set(recoItems.map(x=>x.seg.id));
+  const recoHtml = recoItems.length ? `
+    <div class="reco-section">
+      <div class="reco-label">✦ Recomendados según tu composición actual</div>
+      ${recoItems.map(x=> pickRowHtml(x.seg)).join('')}
+    </div>` : '';
+
+  list = list.filter(s=> !recoIds.has(s.id));
+  const rowsHtml = list.length ? list.map(pickRowHtml).join('')
+    : (recoItems.length ? '' : `<div class="empty-state"><span class="glyph">⟦ ∅ ⟧</span><p>Ningún segmento coincide con la búsqueda.</p></div>`);
 
   sheetBody.innerHTML = `
     <div class="searchbar" style="margin-top:0;">
@@ -1329,6 +1685,7 @@ function renderPickerSheet(){
       <input type="text" id="pickerSearchInput" placeholder="Buscar segmentos…" value="${esc(ui.pickerSearch)}">
     </div>
     <div class="chip-row">${chipHtml}</div>
+    ${recoHtml}
     <div id="pickerRows">${rowsHtml}</div>
   `;
 
@@ -1341,11 +1698,22 @@ function renderPickerSheet(){
       ui.composer.items.splice(existingIdx,1);
     } else {
       const seg = state.segments.find(s=>s.id===segId);
-      const v = seg.versions[0];
-      ui.composer.items.push({segment_id:segId, version_id:v.id, positive_count:Math.min(2,(v.positive_examples||[]).length), include_negative:false});
+      addSegmentObjToComposer(seg);
     }
+    updateComposerBadge();
     renderPickerSheet();
   }));
+}
+function pickRowHtml(s){
+  const added = ui.composer.items.some(it=>it.segment_id===s.id);
+  const cat = categoryById(s.category_id);
+  return `<div class="pick-row">
+    <div class="pick-info">
+      <div class="pick-title">${esc(s.title)}</div>
+      <div class="pick-sub">${esc(cat?cat.name:'')} · ${s.versions.length} versión(es)</div>
+    </div>
+    <div class="pick-add ${added?'added':''}" data-picksegid="${s.id}">${added?'✓':'+'}</div>
+  </div>`;
 }
 
 /* ============================================================
