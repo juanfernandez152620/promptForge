@@ -264,15 +264,46 @@ label.field-label:first-child{margin-top:0;}
 }
 .live-editor-body .cat-heading{color:var(--pink); font-weight:600;}
 .live-editor-body .empty-hint{color:var(--text-faint); font-style:italic;}
+.prompt-block{padding:2px 4px; margin:0 -4px; border-radius:6px;}
+.prompt-block.segment{cursor:pointer; transition:background .15s, outline .15s; outline:1px dashed transparent;}
+.prompt-block.segment:hover{background:rgba(255,110,167,0.08); outline-color:var(--pink-soft);}
 
 .comp-item{background:var(--card); border:1px solid var(--border-soft); border-radius:14px; padding:12px 13px; margin-bottom:10px;}
 .comp-item-head{display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:10px;}
 .comp-item-title{font-family:var(--font-display); font-size:14px; font-weight:600;}
 .comp-item-cat{font-family:var(--font-mono); font-size:10px; color:var(--text-faint); margin-top:2px;}
 .comp-item-row{display:flex; align-items:center; justify-content:space-between; margin-top:9px; gap:10px;}
-.comp-item-row .lbl{font-size:12px; color:var(--text-dim);}
+.comp-item-row .lbl{font-size:12px; color:var(--text-dim); display:flex; align-items:center; gap:5px;}
+.comp-item-row .lbl .manual-tag{font-family:var(--font-mono); font-size:8.5px; color:var(--mint); background:rgba(43,232,196,.12); border:1px solid rgba(43,232,196,.3); padding:1px 5px; border-radius:100px;}
 .comp-remove{color:var(--text-faint); cursor:pointer; font-size:17px; line-height:1; flex:0 0 auto;}
 .comp-remove:hover{color:var(--danger);}
+.comp-item-actions{display:flex; gap:6px; margin-top:9px;}
+
+/* ---------- pencil / count controls ---------- */
+.pencil-btn{
+  flex:0 0 auto; width:26px; height:26px; border-radius:8px; display:flex; align-items:center; justify-content:center;
+  background:var(--card); border:1px solid var(--border); color:var(--text-mid); font-size:12px; cursor:pointer; transition:.15s;
+}
+.pencil-btn:hover{border-color:var(--pink-soft); color:var(--pink);}
+.count-ctrl{display:flex; align-items:center; gap:8px;}
+
+/* ---------- example chips (positive/negative highlight) ---------- */
+.example-chips{display:flex; flex-wrap:wrap; gap:5px; margin-top:8px;}
+.example-chip{font-size:10.5px; padding:3px 8px; border-radius:100px; max-width:220px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.example-chip.pos{background:rgba(43,232,196,.1); border:1px solid rgba(43,232,196,.3); color:var(--mint);}
+.example-chip.neg{background:rgba(255,77,109,.1); border:1px solid rgba(255,77,109,.3); color:var(--danger);}
+
+/* ---------- example chooser checklist ---------- */
+.example-check{display:flex; align-items:flex-start; gap:9px; padding:8px 4px; border-radius:9px; cursor:pointer; font-size:12.5px; line-height:1.5;}
+.example-check:hover{background:rgba(255,255,255,0.03);}
+.example-check input{margin-top:3px; flex:0 0 auto;}
+.example-check.pos span{color:var(--text-hi);}
+.example-check.neg span{color:var(--text-hi);}
+
+/* ---------- random count prompt ---------- */
+.stepper-lg{display:flex; align-items:center; gap:12px; justify-content:center; margin:14px 0;}
+.stepper-lg button{width:44px; height:44px; border-radius:12px; background:var(--card); border:1px solid var(--border-soft); color:var(--text-hi); font-size:20px; cursor:pointer;}
+.stepper-lg .val{font-family:var(--font-mono); font-size:22px; font-weight:600; min-width:44px; text-align:center;}
 
 /* ---------- picker rows ---------- */
 .pick-row{display:flex; align-items:center; gap:10px; padding:11px 4px; border-bottom:1px solid var(--border-soft);}
@@ -619,7 +650,7 @@ label.field-label:first-child{margin-top:0;}
 /* ============================================================
    API CONFIG & TRANSPORT
 ============================================================ */
-const API_URL = 'https://script.google.com/macros/s/AKfycbym14aCNoU-Gvg1hkpDuck4EYNdhwXmlzXJ52Dj1mpIEOhTkJEIRummhHnwMxg-MYRJnQ/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbxCKXf8fiACslJFx0q5iYxNWZNy7RkkTgRv_4RASg97OlH5XCNNpEq7DElOWHPh_9Hskg/exec';
 
 async function apiGet(path){
   const res = await fetch(`${API_URL}?path=${encodeURIComponent(path)}`);
@@ -786,7 +817,7 @@ const ui = {
   expandedVersionId:null,
   composer:{base_text:'', items:[], loadedAssemblyId:null, loadedAssemblyKey:'', loadedAssemblyName:''},
   pickerSearch:'', pickerCatFilter:'all', pickerMode:'composer',
-  expandedSegCats:{}, expandedCatScreenCats:{}
+  expandedSegCats:{}, expandedCatScreenCats:{}, expandedPickerCats:{}, exampleChooserIdx:null
 };
 
 /* ============================================================
@@ -881,8 +912,48 @@ function isInComposer(segId){ return ui.composer.items.some(it=>it.segment_id===
 function addSegmentObjToComposer(seg){
   const v = seg.versions[0];
   if(!v) return false;
-  ui.composer.items.push({segment_id:seg.id, version_id:v.id, positive_count:Math.min(2,(v.positive_examples||[]).length), include_negative:false});
+  ui.composer.items.push(makeComposerItem(seg.id, v.id, v));
   return true;
+}
+
+function makeComposerItem(segId, versionId, version){
+  return {
+    segment_id: segId, version_id: versionId,
+    positive_count: Math.min(2, (version.positive_examples||[]).length),
+    negative_count: 0,
+    positive_mode:'auto', negative_mode:'auto',
+    positive_selected:null, negative_selected:null
+  };
+}
+
+// Legacy items (loaded from an assembly saved before negative_count/example_mode
+// existed) only had `include_negative: boolean`. Migrate in place, once, the
+// first time we touch an item, so old assemblies keep working.
+function migrateComposerItem(it, version){
+  if(it.positive_mode!==undefined) return it; // already migrated
+  it.negative_count = it.include_negative ? (version ? (version.negative_examples||[]).length : 0) : 0;
+  it.positive_mode = 'auto';
+  it.negative_mode = 'auto';
+  it.positive_selected = null;
+  it.negative_selected = null;
+  delete it.include_negative;
+  return it;
+}
+
+// Unified accessor: returns the actual example strings this item will emit
+// for `kind` ('pos'|'neg'), respecting auto (first N) vs manual (explicit
+// picks) mode. This is the single source of truth used by both the assembled
+// prompt and the on-screen highlighted chips, so they can never disagree.
+function getSelectedExamples(it, version, kind){
+  if(!version) return [];
+  const list = kind==='pos' ? (version.positive_examples||[]) : (version.negative_examples||[]);
+  const mode = kind==='pos' ? (it.positive_mode||'auto') : (it.negative_mode||'auto');
+  if(mode==='manual'){
+    const sel = kind==='pos' ? (it.positive_selected||[]) : (it.negative_selected||[]);
+    return sel.filter(i=> i>=0 && i<list.length).sort((a,b)=>a-b).map(i=>list[i]);
+  }
+  const count = kind==='pos' ? (it.positive_count||0) : (it.negative_count||0);
+  return list.slice(0, Math.max(0, count));
 }
 
 function quickAddSegmentToComposer(segId){
@@ -914,42 +985,72 @@ function randomAnySegment(excludeIds){
   return pool[Math.floor(Math.random()*pool.length)];
 }
 
-function handleGlobalRandomAdd(){
-  const excludeIds = ui.composer.items.map(it=>it.segment_id);
-  const seg = randomAnySegment(excludeIds);
-  if(!seg){ showToast('No hay más segmentos para agregar al azar.', 'warn'); return; }
-  addSegmentObjToComposer(seg);
-  updateComposerBadge();
-  if(ui.activeTab==='composer') renderComposer();
-  showToast(`🎲 "${seg.title}" agregado al Composer al azar ✓`);
+// Small modal asking "how many?" before any randomizer runs. Reuses the
+// existing sheet system so it stays visually consistent with the rest of
+// the app instead of a native prompt().
+function promptRandomCount(title, hint, defaultN, onConfirm){
+  openSheet(title);
+  sheetBody.innerHTML = `
+    <p class="field-hint">${hint}</p>
+    <div class="stepper-lg">
+      <button id="rcDec">–</button>
+      <span class="val" id="rcVal">${defaultN}</span>
+      <button id="rcInc">+</button>
+    </div>`;
+  sheetFooter.innerHTML = `<button class="btn btn-ghost" id="btnCancelRC">Cancelar</button><button class="btn btn-primary" id="btnConfirmRC">🎲 Agregar</button>`;
+  let n = defaultN;
+  const valEl = document.getElementById('rcVal');
+  document.getElementById('rcDec').onclick = ()=>{ n = Math.max(1, n-1); valEl.textContent = n; };
+  document.getElementById('rcInc').onclick = ()=>{ n = Math.min(50, n+1); valEl.textContent = n; };
+  document.getElementById('btnCancelRC').onclick = closeSheet;
+  document.getElementById('btnConfirmRC').onclick = ()=>{ closeSheet(); onConfirm(n); };
 }
 
-function handleCategoryRandomAdd(catId){
+function handleGlobalRandomAdd(count){
+  let added = 0;
+  for(let i=0;i<count;i++){
+    const excludeIds = ui.composer.items.map(it=>it.segment_id);
+    const seg = randomAnySegment(excludeIds);
+    if(!seg) break;
+    addSegmentObjToComposer(seg);
+    added++;
+  }
+  updateComposerBadge();
+  if(ui.activeTab==='composer') renderComposer();
+  showToast(added ? `🎲 ${added} segmento(s) agregado(s) al Composer al azar ✓` : 'No hay más segmentos para agregar al azar.', added?undefined:'warn');
+}
+
+function handleCategoryRandomAdd(catId, count){
+  count = count || 1;
   const cat = categoryById(catId);
-  const excludeIds = ui.composer.items.map(it=>it.segment_id);
-  const seg = randomSegmentFromCategory(catId, excludeIds);
-  if(!seg){ showToast(`No hay más segmentos al azar en "${cat?cat.name:'esta categoría'}".`, 'warn'); return; }
-  addSegmentObjToComposer(seg);
+  let added = 0;
+  for(let i=0;i<count;i++){
+    const excludeIds = ui.composer.items.map(it=>it.segment_id);
+    const seg = randomSegmentFromCategory(catId, excludeIds);
+    if(!seg) break;
+    addSegmentObjToComposer(seg);
+    added++;
+  }
   updateComposerBadge();
   if(ui.activeTab==='composer') renderComposer();
-  showToast(`🎲 "${seg.title}" agregado al Composer ✓`);
+  showToast(added ? `🎲 ${added} segmento(s) de "${cat?cat.name:'la categoría'}" agregado(s) ✓` : `No hay más segmentos al azar en "${cat?cat.name:'esta categoría'}".`, added?undefined:'warn');
 }
 
-function handleRandomAssembly(){
-  const existingCatIds = new Set(ui.composer.items.map(it=>{
-    const seg = state.segments.find(s=>s.id===it.segment_id);
-    return seg ? seg.category_id : null;
-  }));
+function handleRandomAssembly(perCategoryCount){
+  perCategoryCount = perCategoryCount || 1;
   let added = 0;
   sortedCategories().forEach(cat=>{
-    if(existingCatIds.has(cat.id)) return;
-    const excludeIds = ui.composer.items.map(it=>it.segment_id);
-    const seg = randomSegmentFromCategory(cat.id, excludeIds);
-    if(seg){ addSegmentObjToComposer(seg); added++; }
+    for(let i=0;i<perCategoryCount;i++){
+      const excludeIds = ui.composer.items.map(it=>it.segment_id);
+      const seg = randomSegmentFromCategory(cat.id, excludeIds);
+      if(!seg) break;
+      addSegmentObjToComposer(seg);
+      added++;
+    }
   });
   updateComposerBadge();
   renderComposer();
-  showToast(added ? `🎲 Se agregaron ${added} segmento(s) — uno por categoría nueva ✓` : 'Ya hay un segmento de cada categoría disponible en el Composer.', added?undefined:'warn');
+  showToast(added ? `🎲 Se agregaron ${added} segmento(s) al azar en total ✓` : 'No quedan segmentos nuevos para agregar al azar.', added?undefined:'warn');
 }
 
 /* ---------- similarity / recommendations ---------- */
@@ -1044,8 +1145,11 @@ function wireSegGroupEvents(root){
   }));
   root.querySelectorAll('[data-action="cat-random"]').forEach(btn=> btn.addEventListener('click', e=>{
     e.stopPropagation();
-    handleCategoryRandomAdd(btn.dataset.cat);
-    renderSegments();
+    const cat = categoryById(btn.dataset.cat);
+    promptRandomCount('Agregar al azar', `Cantidad de segmentos al azar de "${esc(cat?cat.name:'')}" a agregar al Composer.`, 1, (n)=>{
+      handleCategoryRandomAdd(btn.dataset.cat, n);
+      renderSegments();
+    });
   }));
   root.querySelectorAll('[data-action="open-seg"]').forEach(el=> el.addEventListener('click', ()=>{
     openSegmentEditor(state.segments.find(s=>s.id===el.dataset.seg));
@@ -1133,7 +1237,9 @@ function wireSegCardEvents(root){
     renderSegments();
   }));
 }
-document.getElementById('btnGlobalRandom').addEventListener('click', handleGlobalRandomAdd);
+document.getElementById('btnGlobalRandom').addEventListener('click', ()=> promptRandomCount(
+  'Agregar al azar', 'Cantidad de segmentos al azar (de cualquier categoría) a agregar al Composer.', 1, handleGlobalRandomAdd
+));
 document.getElementById('segSearch').addEventListener('input', e=>{ ui.segSearch = e.target.value; renderSegments(); });
 
 const PALETTE = ['var(--pink)','var(--purple-500)','var(--mint)','#ffb84d','#7ea6ff','#ff7ee0','#a3ff7e'];
@@ -1425,8 +1531,11 @@ function renderCategories(){
   }));
   root.querySelectorAll('[data-action="cat-random-inline"]').forEach(btn=> btn.addEventListener('click', e=>{
     e.stopPropagation();
-    handleCategoryRandomAdd(btn.dataset.cat);
-    renderCategories();
+    const cat = categoryById(btn.dataset.cat);
+    promptRandomCount('Agregar al azar', `Cantidad de segmentos al azar de "${esc(cat?cat.name:'')}" a agregar al Composer.`, 1, (n)=>{
+      handleCategoryRandomAdd(btn.dataset.cat, n);
+      renderCategories();
+    });
   }));
   root.querySelectorAll('[data-action="open-seg"]').forEach(el=> el.addEventListener('click', (e)=>{
     e.stopPropagation();
@@ -1535,44 +1644,77 @@ async function saveCategoryFromEditor(){
 const baseTextInput = document.getElementById('baseTextInput');
 baseTextInput.addEventListener('input', ()=>{ ui.composer.base_text = baseTextInput.value; renderComposerPreview(); });
 
-function buildAssembledPrompt(comp){
-  const parts = [];
-  if(comp.base_text && comp.base_text.trim()) parts.push(comp.base_text.trim());
+// Builds the assembled prompt as an ordered list of blocks instead of one
+// flat string, so the preview panel can render each segment's contribution
+// as its own clickable element (click -> edit that segment / add a version)
+// while still being able to reconstruct the exact same plain-text prompt.
+function buildAssembledBlocks(comp){
+  const blocks = [];
+  if(comp.base_text && comp.base_text.trim()) blocks.push({type:'base', text:comp.base_text.trim()});
 
   const byCat = {};
-  comp.items.forEach(it=>{
+  comp.items.forEach((it, itemIdx)=>{
     const seg = state.segments.find(s=>s.id===it.segment_id);
     if(!seg) return;
     if(!byCat[seg.category_id]) byCat[seg.category_id] = [];
-    byCat[seg.category_id].push({seg, it});
+    byCat[seg.category_id].push({seg, it, itemIdx});
   });
   const orderedCats = sortedCategories().filter(c=> byCat[c.id]);
   orderedCats.forEach(cat=>{
-    const lines = [`### ${cat.name}`];
-    (cat.instructions||[]).forEach(ins=>{ if(ins.text && ins.text.trim()) lines.push(ins.text.trim()); });
-    byCat[cat.id].forEach(({seg,it})=>{
+    const headerLines = [`### ${cat.name}`];
+    (cat.instructions||[]).forEach(ins=>{ if(ins.text && ins.text.trim()) headerLines.push(ins.text.trim()); });
+    blocks.push({type:'header', catId:cat.id, text:headerLines.join('\n')});
+    byCat[cat.id].forEach(({seg,it,itemIdx})=>{
       const version = seg.versions.find(v=>v.id===it.version_id) || seg.versions[0];
       if(!version) return;
+      migrateComposerItem(it, version);
       const segLines = [`• ${version.content}`];
-      (version.positive_examples||[]).slice(0, it.positive_count).forEach(ex=> segLines.push(`   + ${ex}`));
-      if(it.include_negative) (version.negative_examples||[]).forEach(ex=> segLines.push(`   – ${ex}`));
-      lines.push(segLines.join('\n'));
+      getSelectedExamples(it, version, 'pos').forEach(ex=> segLines.push(`   + ${ex}`));
+      getSelectedExamples(it, version, 'neg').forEach(ex=> segLines.push(`   – ${ex}`));
+      blocks.push({type:'segment', catId:cat.id, segId:seg.id, itemIdx, text:segLines.join('\n')});
     });
-    parts.push(lines.join('\n'));
   });
+  return blocks;
+}
+
+// Plain-text version, reconstructed from the same blocks so it can never
+// drift out of sync with what the interactive preview shows. Kept for the
+// Assemblies list (char counts) and for copy-to-clipboard.
+function buildAssembledPrompt(comp){
+  const blocks = buildAssembledBlocks(comp);
+  const parts = [];
+  let currentCatText = null;
+  blocks.forEach(b=>{
+    if(b.type==='base'){ parts.push(b.text); return; }
+    if(b.type==='header'){
+      if(currentCatText!==null) parts.push(currentCatText);
+      currentCatText = b.text;
+      return;
+    }
+    if(b.type==='segment') currentCatText += '\n'+b.text;
+  });
+  if(currentCatText!==null) parts.push(currentCatText);
   return parts.join('\n\n');
 }
 
 function renderComposerPreview(){
-  const text = buildAssembledPrompt(ui.composer);
+  const blocks = buildAssembledBlocks(ui.composer);
+  const plainText = buildAssembledPrompt(ui.composer);
   const box = document.getElementById('composerPreview');
-  if(!text.trim()){
+  if(!plainText.trim()){
     box.innerHTML = `<span class="empty-hint">El prompt ensamblado va a aparecer acá a medida que agregues texto base o segmentos…</span>`;
   } else {
-    const highlighted = esc(text).replace(/^### (.+)$/gm, '<span class="cat-heading">### $1</span>');
-    box.innerHTML = highlighted;
+    box.innerHTML = blocks.map(b=>{
+      if(b.type==='base') return `<div class="prompt-block base">${esc(b.text)}</div>`;
+      if(b.type==='header') return `<div class="prompt-block header">${esc(b.text).replace(/^### (.+)/, '<span class="cat-heading">### $1</span>')}</div>`;
+      return `<div class="prompt-block segment" data-action="preview-edit-seg" data-seg="${b.segId}" title="Tocá para editar este segmento o crear una nueva versión">${esc(b.text)}</div>`;
+    }).join('');
+    box.querySelectorAll('[data-action="preview-edit-seg"]').forEach(el=> el.addEventListener('click', ()=>{
+      const seg = state.segments.find(s=>s.id===el.dataset.seg);
+      if(seg) openSegmentEditor(seg);
+    }));
   }
-  document.getElementById('composerCharCount').textContent = text.length+' chars';
+  document.getElementById('composerCharCount').textContent = plainText.length+' chars';
 }
 
 function renderComposer(){
@@ -1604,8 +1746,15 @@ function renderComposer(){
     }
     const cat = categoryById(seg.category_id);
     const version = seg.versions.find(v=>v.id===it.version_id) || seg.versions[0];
+    migrateComposerItem(it, version);
     const maxPos = (version.positive_examples||[]).length;
-    const hasNeg = (version.negative_examples||[]).length>0;
+    const maxNeg = (version.negative_examples||[]).length;
+    const posSelected = getSelectedExamples(it, version, 'pos');
+    const negSelected = getSelectedExamples(it, version, 'neg');
+    const posManual = it.positive_mode==='manual';
+    const negManual = it.negative_mode==='manual';
+    const chipsHtml = (posSelected.map(ex=>`<span class="example-chip pos" title="${esc(ex)}">+ ${esc(ex)}</span>`).join('') +
+                        negSelected.map(ex=>`<span class="example-chip neg" title="${esc(ex)}">– ${esc(ex)}</span>`).join(''));
     return `<div class="comp-item">
       <div class="comp-item-head">
         <div>
@@ -1623,17 +1772,33 @@ function renderComposer(){
       </div>
 
       <div class="comp-item-row">
-        <span class="lbl">Ejemplos positivos</span>
-        <div class="stepper">
-          <button data-action="comp-pos-dec" data-idx="${idx}">–</button>
-          <span class="val">${it.positive_count}/${maxPos}</span>
-          <button data-action="comp-pos-inc" data-idx="${idx}">+</button>
+        <span class="lbl">Ejemplos positivos ${posManual?'<span class="manual-tag">manual</span>':''}</span>
+        <div class="count-ctrl">
+          <div class="stepper">
+            <button data-action="comp-pos-dec" data-idx="${idx}">–</button>
+            <span class="val">${posSelected.length}/${maxPos}</span>
+            <button data-action="comp-pos-inc" data-idx="${idx}">+</button>
+          </div>
+          <div class="pencil-btn" data-action="comp-choose-pos" data-idx="${idx}" title="Elegir ejemplos positivos a mano">✎</div>
         </div>
       </div>
 
       <div class="comp-item-row">
-        <span class="lbl">Incluir ejemplos negativos</span>
-        <div class="switch ${it.include_negative?'on':''} ${hasNeg?'':'hidden'}" data-action="comp-neg-toggle" data-idx="${idx}" style="${hasNeg?'':'opacity:.25; pointer-events:none;'}"><div class="dot"></div></div>
+        <span class="lbl">Ejemplos negativos ${negManual?'<span class="manual-tag">manual</span>':''}</span>
+        <div class="count-ctrl">
+          <div class="stepper" style="${maxNeg?'':'opacity:.3; pointer-events:none;'}">
+            <button data-action="comp-neg-dec" data-idx="${idx}">–</button>
+            <span class="val">${negSelected.length}/${maxNeg}</span>
+            <button data-action="comp-neg-inc" data-idx="${idx}">+</button>
+          </div>
+          <div class="pencil-btn" data-action="comp-choose-neg" data-idx="${idx}" title="Elegir ejemplos negativos a mano" style="${maxNeg?'':'opacity:.3; pointer-events:none;'}">✎</div>
+        </div>
+      </div>
+
+      ${chipsHtml ? `<div class="example-chips">${chipsHtml}</div>` : ''}
+
+      <div class="comp-item-actions">
+        <button class="btn btn-ghost btn-sm" style="flex:1;" data-action="comp-edit-seg" data-idx="${idx}">✎ Editar segmento</button>
       </div>
     </div>`;
   }).join('');
@@ -1653,10 +1818,16 @@ document.getElementById('compList').addEventListener('click', e=>{
   const seg = state.segments.find(s=>s.id===it.segment_id);
   if(!seg) return; // shouldn't happen — broken items only expose remove/relink actions above
   const version = seg.versions.find(v=>v.id===it.version_id) || seg.versions[0];
+  migrateComposerItem(it, version);
 
-  if(action==='comp-pos-inc'){ it.positive_count = Math.min((version.positive_examples||[]).length, it.positive_count+1); }
-  else if(action==='comp-pos-dec'){ it.positive_count = Math.max(0, it.positive_count-1); }
-  else if(action==='comp-neg-toggle'){ it.include_negative = !it.include_negative; }
+  if(action==='comp-edit-seg'){ openSegmentEditor(seg); return; }
+  if(action==='comp-choose-pos'){ openExampleChooser(idx, 'pos'); return; }
+  if(action==='comp-choose-neg'){ openExampleChooser(idx, 'neg'); return; }
+
+  if(action==='comp-pos-inc'){ it.positive_mode='auto'; it.positive_count = Math.min((version.positive_examples||[]).length, (it.positive_count||0)+1); }
+  else if(action==='comp-pos-dec'){ it.positive_mode='auto'; it.positive_count = Math.max(0, (it.positive_count||0)-1); }
+  else if(action==='comp-neg-inc'){ it.negative_mode='auto'; it.negative_count = Math.min((version.negative_examples||[]).length, (it.negative_count||0)+1); }
+  else if(action==='comp-neg-dec'){ it.negative_mode='auto'; it.negative_count = Math.max(0, (it.negative_count||0)-1); }
   renderComposer();
 });
 document.getElementById('compList').addEventListener('change', e=>{
@@ -1667,9 +1838,60 @@ document.getElementById('compList').addEventListener('change', e=>{
   it.version_id = sel.value;
   const seg = state.segments.find(s=>s.id===it.segment_id);
   const version = seg.versions.find(v=>v.id===it.version_id);
-  it.positive_count = Math.min(it.positive_count, (version.positive_examples||[]).length);
+  // A different version has a different example list — manual index-based
+  // selections no longer mean the same thing, so drop back to auto mode.
+  it.positive_mode = 'auto'; it.negative_mode = 'auto';
+  it.positive_selected = null; it.negative_selected = null;
+  it.positive_count = Math.min(it.positive_count||0, (version.positive_examples||[]).length);
+  it.negative_count = Math.min(it.negative_count||0, (version.negative_examples||[]).length);
   renderComposer();
 });
+
+/* ---------- manual example chooser ---------- */
+function openExampleChooser(idx, focusKind){
+  const it = ui.composer.items[idx];
+  const seg = state.segments.find(s=>s.id===it.segment_id);
+  const version = seg.versions.find(v=>v.id===it.version_id) || seg.versions[0];
+  migrateComposerItem(it, version);
+  // Seed the manual selection from whatever is currently effectively
+  // selected (auto or manual) so the checklist opens showing what's really
+  // going to be included right now, not an empty list.
+  if(!it.positive_selected) it.positive_selected = getSelectedExamples(it, version, 'pos').map(ex=> (version.positive_examples||[]).indexOf(ex));
+  if(!it.negative_selected) it.negative_selected = getSelectedExamples(it, version, 'neg').map(ex=> (version.negative_examples||[]).indexOf(ex));
+  ui.exampleChooserIdx = idx;
+  openSheet('Elegir Ejemplos — '+seg.title);
+  renderExampleChooser();
+  sheetFooter.innerHTML = `<button class="btn btn-primary btn-block" id="btnDoneExamples">Listo</button>`;
+  document.getElementById('btnDoneExamples').onclick = ()=>{ closeSheet(); renderComposer(); };
+}
+
+function renderExampleChooser(){
+  const idx = ui.exampleChooserIdx;
+  const it = ui.composer.items[idx];
+  const seg = state.segments.find(s=>s.id===it.segment_id);
+  const version = seg.versions.find(v=>v.id===it.version_id) || seg.versions[0];
+  const pos = version.positive_examples||[];
+  const neg = version.negative_examples||[];
+  sheetBody.innerHTML = `
+    <div class="section-label">Ejemplos positivos (${it.positive_selected.length}/${pos.length} elegidos)</div>
+    ${pos.length ? pos.map((ex,i)=>`<label class="example-check pos"><input type="checkbox" data-kind="pos" data-i="${i}" ${it.positive_selected.includes(i)?'checked':''}><span>${esc(ex)}</span></label>`).join('')
+      : `<p class="field-hint">Esta versión no tiene ejemplos positivos.</p>`}
+
+    <div class="section-label" style="margin-top:18px;">Ejemplos negativos (${it.negative_selected.length}/${neg.length} elegidos)</div>
+    ${neg.length ? neg.map((ex,i)=>`<label class="example-check neg"><input type="checkbox" data-kind="neg" data-i="${i}" ${it.negative_selected.includes(i)?'checked':''}><span>${esc(ex)}</span></label>`).join('')
+      : `<p class="field-hint">Esta versión no tiene ejemplos negativos.</p>`}
+  `;
+  sheetBody.querySelectorAll('input[type=checkbox]').forEach(cb=> cb.addEventListener('change', e=>{
+    const kind = e.target.dataset.kind; const i = +e.target.dataset.i;
+    const selKey = kind==='pos' ? 'positive_selected' : 'negative_selected';
+    const modeKey = kind==='pos' ? 'positive_mode' : 'negative_mode';
+    it[modeKey] = 'manual';
+    const arr = it[selKey];
+    const pos2 = arr.indexOf(i);
+    if(e.target.checked){ if(pos2===-1) arr.push(i); } else if(pos2>-1){ arr.splice(pos2,1); }
+    renderExampleChooser();
+  }));
+}
 
 document.getElementById('btnClearComposer').addEventListener('click', ()=>{
   ui.composer = {base_text:'', items:[], loadedAssemblyId:null, loadedAssemblyKey:'', loadedAssemblyName:''};
@@ -1677,7 +1899,10 @@ document.getElementById('btnClearComposer').addEventListener('click', ()=>{
   renderComposer();
 });
 document.getElementById('btnAddSegmentComposer').addEventListener('click', ()=> openPicker('composer'));
-document.getElementById('btnRandomAssembly').addEventListener('click', handleRandomAssembly);
+document.getElementById('btnRandomAssembly').addEventListener('click', ()=> promptRandomCount(
+  'Ensamblaje al azar', 'Cantidad de segmentos al azar a agregar por cada categoría todavía no representada en el Composer.', 1,
+  (n)=> handleRandomAssembly(n)
+));
 
 document.getElementById('btnSaveAssembly').addEventListener('click', ()=>{
   if(ui.composer.items.length===0 && !ui.composer.base_text.trim()){ return; }
@@ -1736,19 +1961,51 @@ function openPicker(mode, relinkIdx){
   document.getElementById('btnPickerDone').onclick = ()=>{ closeSheet(); renderComposer(); };
 }
 
-function renderPickerSheet(){
-  const cats = sortedCategories();
-  const chipHtml = `<div class="chip ${ui.pickerCatFilter==='all'?'active':''}" data-pcat="all">Todas</div>` +
-    cats.map(c=>`<div class="chip ${ui.pickerCatFilter===c.id?'active':''}" data-pcat="${c.id}">${esc(c.name)}</div>`).join('');
+function pickSegmentSelected(segId){
+  if(ui.pickerMode==='relink' && ui.pickerRelinkIdx!=null){
+    const seg = state.segments.find(s=>s.id===segId);
+    const v = seg.versions[0];
+    ui.composer.items[ui.pickerRelinkIdx] = makeComposerItem(segId, v.id, v);
+    updateComposerBadge();
+    closeSheet();
+    renderComposer();
+    showToast(`Reparado — ahora apunta a "${seg.title}". Recordá volver a guardar el ensamblaje para persistir el arreglo.`, 'warn');
+    return;
+  }
+  const existingIdx = ui.composer.items.findIndex(it=>it.segment_id===segId);
+  if(existingIdx>=0){
+    ui.composer.items.splice(existingIdx,1);
+  } else {
+    addSegmentObjToComposer(state.segments.find(s=>s.id===segId));
+  }
+  updateComposerBadge();
+  renderPickerSheet();
+}
 
+function renderPickerSheet(){
   const q = ui.pickerSearch.trim().toLowerCase();
   const qWords = q.split(/\s+/).filter(Boolean);
-  let list = state.segments.filter(s=>{
-    if(ui.pickerCatFilter!=='all' && s.category_id!==ui.pickerCatFilter) return false;
-    return segMatchesQuery(s, qWords);
-  });
 
-  const showReco = !q && ui.pickerCatFilter==='all';
+  if(ui.pickerMode==='relink'){
+    // Relink is a one-shot pick — a flat searchable list keeps that fast.
+    let list = state.segments.filter(s=> segMatchesQuery(s, qWords)).sort((a,b)=> a.title.localeCompare(b.title));
+    const rowsHtml = list.length ? list.map(pickRowHtml).join('')
+      : `<div class="empty-state"><span class="glyph">⟦ ∅ ⟧</span><p>Ningún segmento coincide con la búsqueda.</p></div>`;
+    sheetBody.innerHTML = `
+      <div class="searchbar" style="margin-top:0;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input type="text" id="pickerSearchInput" placeholder="Buscar segmentos…" value="${esc(ui.pickerSearch)}">
+      </div>
+      <div id="pickerRows">${rowsHtml}</div>
+    `;
+    document.getElementById('pickerSearchInput').addEventListener('input', e=>{ ui.pickerSearch = e.target.value; renderPickerSheet(); });
+    sheetBody.querySelectorAll('[data-picksegid]').forEach(el=> el.addEventListener('click', ()=> pickSegmentSelected(el.dataset.picksegid)));
+    return;
+  }
+
+  // Composer-add mode: grouped accordion by category, same pattern as the
+  // Segments screen, so browsing here feels identical — plus random-add.
+  const showReco = !q;
   const recoItems = showReco ? getRecommendedForComposer(5) : [];
   const recoIds = new Set(recoItems.map(x=>x.seg.id));
   const recoHtml = recoItems.length ? `
@@ -1757,50 +2014,77 @@ function renderPickerSheet(){
       ${recoItems.map(x=> pickRowHtml(x.seg)).join('')}
     </div>` : '';
 
-  list = list.filter(s=> !recoIds.has(s.id));
-  const rowsHtml = list.length ? list.map(pickRowHtml).join('')
-    : (recoItems.length ? '' : `<div class="empty-state"><span class="glyph">⟦ ∅ ⟧</span><p>Ningún segmento coincide con la búsqueda.</p></div>`);
+  const isSearching = qWords.length>0;
+  const cats = sortedCategories();
+  const groups = cats.map(c=> ({cat:c, segs: state.segments.filter(s=> s.category_id===c.id && !recoIds.has(s.id) && segMatchesQuery(s, qWords))}));
+  const uncategorized = state.segments.filter(s=> !categoryById(s.category_id) && !recoIds.has(s.id) && segMatchesQuery(s, qWords));
+  const visibleGroups = isSearching ? groups.filter(g=> g.segs.length>0) : groups;
+
+  const groupsHtml = visibleGroups.map(g=>{
+    const expanded = isSearching ? true : !!ui.expandedPickerCats[g.cat.id];
+    return pickerGroupHtml(g.cat, g.segs, expanded);
+  }).join('') + (uncategorized.length ? pickerGroupHtml(null, uncategorized, true) : '');
+
+  const nothingAtAll = !recoItems.length && visibleGroups.every(g=>g.segs.length===0) && uncategorized.length===0;
 
   sheetBody.innerHTML = `
-    <div class="searchbar" style="margin-top:0;">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
-      <input type="text" id="pickerSearchInput" placeholder="Buscar segmentos…" value="${esc(ui.pickerSearch)}">
+    <div style="display:flex; gap:8px; align-items:center;">
+      <div class="searchbar" style="flex:1; margin-top:0;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input type="text" id="pickerSearchInput" placeholder="Buscar segmentos…" value="${esc(ui.pickerSearch)}">
+      </div>
+      <div class="icon-btn" id="btnPickerGlobalRandom" title="Agregar segmentos al azar de cualquier categoría">🎲</div>
     </div>
-    <div class="chip-row">${chipHtml}</div>
     ${recoHtml}
-    <div id="pickerRows">${rowsHtml}</div>
+    ${nothingAtAll ? `<div class="empty-state"><span class="glyph">⟦ ∅ ⟧</span><p>${isSearching?`Ningún segmento coincide con "${esc(ui.pickerSearch)}".`:'No hay segmentos todavía.'}</p></div>` : groupsHtml}
   `;
 
   document.getElementById('pickerSearchInput').addEventListener('input', e=>{ ui.pickerSearch = e.target.value; renderPickerSheet(); });
-  sheetBody.querySelectorAll('[data-pcat]').forEach(chip=> chip.addEventListener('click', ()=>{ ui.pickerCatFilter = chip.dataset.pcat; renderPickerSheet(); }));
-  sheetBody.querySelectorAll('[data-picksegid]').forEach(el=> el.addEventListener('click', ()=>{
-    const segId = el.dataset.picksegid;
-    if(ui.pickerMode==='relink' && ui.pickerRelinkIdx!=null){
-      const seg = state.segments.find(s=>s.id===segId);
-      const v = seg.versions[0];
-      ui.composer.items[ui.pickerRelinkIdx] = {segment_id:segId, version_id:v.id, positive_count:Math.min(2,(v.positive_examples||[]).length), include_negative:false};
-      updateComposerBadge();
-      closeSheet();
-      renderComposer();
-      showToast(`Reparado — ahora apunta a "${seg.title}". Recordá volver a guardar el ensamblaje para persistir el arreglo.`, 'warn');
-      return;
-    }
-    const existingIdx = ui.composer.items.findIndex(it=>it.segment_id===segId);
-    if(existingIdx>=0){
-      ui.composer.items.splice(existingIdx,1);
-    } else {
-      const seg = state.segments.find(s=>s.id===segId);
-      addSegmentObjToComposer(seg);
-    }
-    updateComposerBadge();
+  document.getElementById('btnPickerGlobalRandom').addEventListener('click', ()=> promptRandomCount(
+    'Agregar al azar', 'Cantidad de segmentos al azar a agregar al Composer.', 1, (n)=>{ handleGlobalRandomAdd(n); renderPickerSheet(); }
+  ));
+  sheetBody.querySelectorAll('[data-picksegid]').forEach(el=> el.addEventListener('click', ()=> pickSegmentSelected(el.dataset.picksegid)));
+  sheetBody.querySelectorAll('[data-action="toggle-pgroup"]').forEach(head=> head.addEventListener('click', e=>{
+    if(e.target.closest('[data-action="pgroup-random"]')) return;
+    const g = head.dataset.group;
+    ui.expandedPickerCats[g] = !ui.expandedPickerCats[g];
     renderPickerSheet();
   }));
+  sheetBody.querySelectorAll('[data-action="pgroup-random"]').forEach(btn=> btn.addEventListener('click', e=>{
+    e.stopPropagation();
+    const cat = categoryById(btn.dataset.cat);
+    promptRandomCount('Agregar al azar', `Cantidad de segmentos al azar de "${esc(cat?cat.name:'')}" a agregar al Composer.`, 1, (n)=>{
+      handleCategoryRandomAdd(btn.dataset.cat, n);
+      renderPickerSheet();
+    });
+  }));
 }
+
+function pickerGroupHtml(cat, segs, expanded){
+  const catId = cat ? cat.id : '__none__';
+  const color = cat ? catColor(cat.id) : 'var(--text-faint)';
+  const name = cat ? cat.name : 'Sin categoría';
+  return `<div class="cat-group">
+    <div class="cat-group-head" data-action="toggle-pgroup" data-group="${catId}">
+      <span class="cat-group-dot" style="background:${color}"></span>
+      <span class="cat-group-name">${esc(name)}</span>
+      <span class="cat-group-count">${segs.length}</span>
+      ${cat ? `<span class="icon-btn sm" data-action="pgroup-random" data-cat="${cat.id}" title="Agregar al azar de ${esc(name)}">🎲</span>` : ''}
+      <span class="cat-group-chev ${expanded?'open':''}">▾</span>
+    </div>
+    <div class="cat-group-body ${expanded?'open':''}">
+      <div class="cat-group-body-inner">
+        ${segs.length ? segs.map(pickRowHtml).join('') : `<p class="field-hint" style="padding:6px 8px;">Sin segmentos en esta categoría todavía.</p>`}
+      </div>
+    </div>
+  </div>`;
+}
+
 function pickRowHtml(s){
   const added = ui.composer.items.some(it=>it.segment_id===s.id);
   const cat = categoryById(s.category_id);
   return `<div class="pick-row">
-    <div class="pick-info">
+    <div class="pick-info" data-picksegid="${s.id}">
       <div class="pick-title">${esc(s.title)}</div>
       <div class="pick-sub">${esc(cat?cat.name:'')} · ${s.versions.length} versión(es)</div>
     </div>
